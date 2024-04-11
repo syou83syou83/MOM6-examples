@@ -1,0 +1,113 @@
+https://github.com/NOAA-GFDL/MOM6-examples/wiki/Compiling-on-MacBook-M1-chip-using-conda-environment
+
+
+############################ 前期准备
+conda create --name mommy
+conda activate mommy
+
+conda config --set channel_priority strict
+conda install -c conda-forge gfortran -y
+conda install -c conda-forge netcdf4 -y
+conda install -c conda-forge netcdf-fortran -y
+conda install -c conda-forge mpich -y
+
+
+############################ clone repository
+
+git clone --recursive https://github.com/NOAA-GFDL/MOM6-examples.git MOM6-examples
+
+
+
+############################ Compiling FMS:
+Under the MOM6-examples folder
+
+vi compileFMS.bash
+输入下面的内容：
+
+#!/bin/bash
+
+mkdir -p build/fms/
+(cd build/fms; rm -f path_names; \
+../../src/mkmf/bin/list_paths -l ../../src/FMS; \
+../../src/mkmf/bin/mkmf -t ../../src/mkmf/templates/osx-gcc10.mk -p libfms.a -c "-Duse_libMPI -Duse_netCDF" path_names)
+
+(cd build/fms/; source ../env; make NETCDF=4 REPRO=1 libfms.a -j)
+
+然后运行：
+bash compileFMS.bash
+
+############################ Compiling Ocean only:
+
+vi compileOcean.bash
+输入下面的内容：
+#!/bin/bash
+ 
+mkdir -p build/ocean_only/
+(cd build/ocean_only/; rm -f path_names; \
+../../src/mkmf/bin/list_paths -l ./ ../../src/MOM6/{config_src/infra/FMS1,config_src/memory/dynamic_symmetric,config_src/drivers/solo_driver,config_src/external,src/{*,*/*}}/ ; \
+../../src/mkmf/bin/mkmf -t ../../src/mkmf/templates/osx-gcc10.mk -o '-I../fms' -p MOM6 -l '-L../fms -lfms' path_names)
+ 
+(cd build/ocean_only/; source ../env; make REPRO=1 MOM6 -j)
+
+
+然后运行：
+bash compileOcean.bash
+
+############################ Compiling Ice-SIS2
+vi compileSIS2.bash
+输入下面的内容：   这里注意与网上给的不同，网上的老了。应该把icebergs 变成icebergs/src。This will remove the driver in icebergs/driver
+
+#!/bin/bash
+ 
+mkdir -p build/ice_ocean_SIS2/
+(cd build/ice_ocean_SIS2/; rm -f path_names; \
+../../src/mkmf/bin/list_paths -l ./ ../../src/MOM6/config_src/{infra/FMS1,memory/dynamic_symmetric,drivers/FMS_cap,external} ../../src/MOM6/src/{*,*/*}/ ../../src/{atmos_null,coupler,land_null,ice_param,icebergs/src,SIS2,FMS/coupler,FMS/include}/)
+(cd build/ice_ocean_SIS2/; \
+../../src/mkmf/bin/mkmf -t ../../src/mkmf/templates/osx-gcc10.mk -o '-I../fms' -p MOM6 -l '-L../fms -lfms' -c '-Duse_AM3_physics -D_USE_LEGACY_LAND_' path_names )
+ 
+(cd build/ice_ocean_SIS2/; source ../env; make REPRO=1 MOM6 -j)
+
+然后运行。
+bash compileSIS2.bash
+
+############################ 重启shell
+
+这里不知道为什么让我重新启动shell。 我就临时运行一下 也不把下面的路径放在.zshrc file 里面了
+
+Restart your shell, or restart your laptop. Launch the conda environment： 
+
+conda activate mommy
+
+and add the executable to your path: export PATH="/Users/$USER/mom6_folder/MOM6-examples/build/ocean_only/:$PATH" 
+This has to be done every time you restart the shell or laptop. You can add the path to your .zshrc file to avoid adding path every time.
+
+
+############################ Running MOM6  参考下面的链接https://github.com/NOAA-GFDL/MOM6-examples/wiki/Getting-started ，  Running a test case
+
+cd ocean_only/double_gyre/
+mkdir -p RESTART                  #这步似乎是把结果存在了ocean_only/double_gyre/RESTART文件夹
+../../build/ocean_only/MOM6
+
+然后就成功出现运行结果了。运行后在ocean_only/double_gyre/RESTART文件夹里 产生了MOM.res.nc 和ocean_solo.res
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
